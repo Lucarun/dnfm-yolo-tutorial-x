@@ -1,4 +1,4 @@
-from adb.scrcpy_adb import ScrcpyADB
+from adb.scrcpy_adb1 import ScrcpyADB
 import time
 import cv2 as cv
 

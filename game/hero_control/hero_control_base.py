@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+# @Author  : huxiansheng (you@example.org)
+# @Date    : 2024/8/6
+
 import time
 from typing import Tuple
 
@@ -6,9 +11,9 @@ from data.coordinate.game_coordinate import *
 import math
 
 
-class GameControl:
+class HeroControlBase:
     """
-    游戏控制
+    英雄控制基类
     """
 
     def __init__(self, adb: ScrcpyADB):
@@ -52,7 +57,7 @@ class GameControl:
         time.sleep(t)
         self.adb.touch_end(x, y)
 
-    def normal_attack(self, t: float or int = 0.01):
+    def normal_attack(self, t: float or int = 1):
         """
         普通攻击
         :return:
@@ -62,7 +67,7 @@ class GameControl:
 
 
 if __name__ == '__main__':
-    ctl = GameControl(ScrcpyADB())
+    ctl = HeroControlBase(ScrcpyADB())
 # ctl.move(180, 3)
 # time.sleep(0.3)
 # ctl.attack()
