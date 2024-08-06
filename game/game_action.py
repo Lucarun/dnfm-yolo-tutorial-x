@@ -142,7 +142,7 @@ class GameAction:
             self.ctrl.skill_combo_1()
             self.ctrl.normal_attack()
         else:
-            self.ctrl.move(calc_angle(hx, hy, mx, my), 0.01)
+            self.ctrl.move(calc_angle(hx, hy, mx, my), 0.2)
 
     def room_kill_monsters(self):
         """
@@ -174,8 +174,8 @@ class GameAction:
         :return:
         """
         mov_start = False
+        logger.info("开始跑图")
         while True:
-            logger.info("开始跑图")
             time.sleep(0.1)
             screen = self.ctrl.adb.last_screen
             if screen is None:
@@ -219,6 +219,7 @@ class GameAction:
             cv.arrowedLine(screen, (hx, hy), (ax, ay), (255, 0, 0), 3)
             angle = calc_angle(hx, hy, ax, ay)
             sx, sy = self.ctrl.calc_mov_point(angle)
+            logger.info(f"angle:{angle},sx:{sx},sy:{sy}")
 
             if not mov_start:
                 self.adb.touch_start(sx, sy)
@@ -231,8 +232,7 @@ class GameAction:
 
 
 if __name__ == '__main__':
-    ctrl = GameControl(ScrcpyADB())
-    action = GameAction(ctrl)
+    action = GameAction('hong_yan',ScrcpyADB())
     while True:
         action.mov_to_next_room()
         time.sleep(3)

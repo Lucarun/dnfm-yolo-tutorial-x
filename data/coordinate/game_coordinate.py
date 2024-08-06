@@ -29,7 +29,7 @@ guild = 1569, 350
 # 委托任务
 task_delegate = 1573, 448
 # 轮盘
-roulette_wheel = 362, 623
+roulette_wheel = 567, 977
 # 背包
 pack = 1560, 728
 # 退出二级界面
@@ -95,26 +95,24 @@ battle_start = 1409, 682
 
 ############## 技能坐标 ###################
 # 普通攻击
-attack = 0
+attack = 2372,1132
 # buff1
-buff1 = 0
+buff1 = 2266,610
 # buff2
-buff2 = 0
+buff2 = 2393,610
 # 觉醒技能
-awaken_skill = 0
+awaken_skill = 1985,610
 # 技能1
-skill1 = 0
+skill1 = 2051,770
 # 技能2
-skill2 = 0
+skill2 = 2235,770
 # 技能3
-skill3 = 0
+skill3 = 2418,770
 # 技能4
-skill4 = 0
+skill4 = 1864,960
 # 技能5
-skill5 = 0
+skill5 = 2049,960
 # 技能6
-skill6 = 0
+skill6 = 2230,960
 # 技能7
-skill7 = 0
-# 技能8
-skill8 = 0
+skill7 = 1921,1160

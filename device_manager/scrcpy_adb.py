@@ -12,7 +12,6 @@ from adbutils import adb
 import cv2 as cv
 from utils.logger import logger
 from utils.yolov5 import YoloV5s
-import uiautomator2 as u2
 
 
 class ScrcpyADB:
@@ -26,9 +25,7 @@ class ScrcpyADB:
             raise Exception("No devices connected")
         adb.connect("127.0.0.1:5555")
 
-        self.d = u2.connect(devices[0])
-
-        self.client = scrcpy.Client(device=devices[0], max_fps=15)
+        self.client = scrcpy.Client(device=devices[0],max_width=2688,max_fps=15)
         self.client.add_listener(scrcpy.EVENT_FRAME, self.on_frame)
         self.client.start(threaded=True)
 
@@ -65,11 +62,11 @@ class ScrcpyADB:
                         color = (0, 0, 255)
 
                     cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
-                    # cv.imshow('frame', frame)
+                    cv.imshow('frame', frame)
+                    cv.waitKey(1)
 
             except Exception as e:
                 logger.error(e)
-            # cv.waitKey(1)
 
     def display_frames(self):
         """
@@ -104,6 +101,7 @@ class ScrcpyADB:
         :param y:纵坐标
         :return:
         """
+        logger.info(f"touch start {x},{y}")
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
 
     def touch_move(self, x: int or float, y: int or float):
@@ -142,7 +140,7 @@ if __name__ == '__main__':
     # debug_img = "/Users/admin/project/dnfm-yolo-tutorial/data/debug_img/local_send.png"
     # screenshot = sadb.d.screenshot(format="opencv")
     time.sleep(1)
-    sadb.touch(1060, 1954)
+    sadb.touch(2257, 949)
 
-    sadb.display_frames()
-    # time.sleep(222)
+    # sadb.display_frames()
+    time.sleep(222)
