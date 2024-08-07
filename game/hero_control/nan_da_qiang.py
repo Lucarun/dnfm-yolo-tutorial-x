@@ -8,9 +8,9 @@ from device_manager.scrcpy_adb import ScrcpyADB
 from game.hero_control.hero_control_base import HeroControlBase
 
 
-class NanQiangPao(HeroControlBase):
+class NanDaQiang(HeroControlBase):
     """
-    男枪炮
+    男大枪
     """
 
     def __init__(self, adb: ScrcpyADB):

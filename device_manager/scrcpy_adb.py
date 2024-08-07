@@ -25,7 +25,7 @@ class ScrcpyADB:
             raise Exception("No devices connected")
         adb.connect("127.0.0.1:5555")
 
-        self.client = scrcpy.Client(device=devices[0],max_width=2688,max_fps=15)
+        self.client = scrcpy.Client(device=devices[0], max_width=2688, max_fps=15)
         self.client.add_listener(scrcpy.EVENT_FRAME, self.on_frame)
         self.client.start(threaded=True)
 
@@ -104,7 +104,7 @@ class ScrcpyADB:
         logger.info(f"touch start {x},{y}")
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
 
-    def touch_move(self, x: int or float, y: int or float):
+    def _touch_move(self, x: int or float, y: int or float):
         """
         触摸拖动
         :param x: 横坐标
@@ -122,16 +122,31 @@ class ScrcpyADB:
         """
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
 
-    def touch(self, x: int or float, y: int or float):
+    def touch(self, x: int or float, y: int or float, t: int or float = 0.5):
         """
         :param x:
         :param y:
+        :param t:
         :return:
         """
-        print(22222)
         self.touch_start(x, y)
-        time.sleep(0.01)
+        time.sleep(t)
         self.touch_end(x, y)
+
+    def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, t: int or float = 0.5):
+        """
+        实现屏幕拖动（滑动手势）
+        :param start_x: 起始点的 x 坐标
+        :param start_y: 起始点的 y 坐标
+        :param end_x: 终点的 x 坐标
+        :param end_y: 终点的 y 坐标
+        :param t: 持续时间，默认 0.5 秒
+        """
+        self.touch_start(scrcpy.ACTION_DOWN, start_x, start_y)
+        time.sleep(0.2)
+        self._touch_move(scrcpy.ACTION_MOVE, end_x, end_y)
+        time.sleep(t)
+        self.touch_end(scrcpy.ACTION_UP, end_x, end_y)
 
 
 if __name__ == '__main__':

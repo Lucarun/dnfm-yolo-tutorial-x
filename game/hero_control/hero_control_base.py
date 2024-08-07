@@ -11,6 +11,7 @@ from data.coordinate.game_coordinate import *
 import math
 from utils.logger import logger
 
+
 class HeroControlBase:
     """
     英雄控制基类
@@ -33,31 +34,18 @@ class HeroControlBase:
         y = ry - r * math.sin(angle * math.pi / 180)
         return int(x), int(y)
 
-    def move(self, angle: float, t: float):
+    def move(self, angle: float, t: float = 0.5):
         """
         角色移动
         :param angle:
         :param t:
         :return:
         """
+        rx, ry = roulette_wheel
         # 计算轮盘x, y坐标
         x, y = self.calc_mov_point(angle)
         logger.info(f"移动到坐标:{x},{y}")
-        self.adb.touch_start(x, y)
-        time.sleep(t)
-        self.adb.touch_end(x, y)
-
-    def _attack(self,x:int, y:int, t: float = 0.01):
-        """
-        攻击
-        :param x:
-        :param y:
-        :param t:
-        :return:
-        """
-        self.adb.touch_start(x, y)
-        time.sleep(t)
-        self.adb.touch_end(x, y)
+        self.adb.swipe(rx, ry, x, y, t)
 
     def normal_attack(self, t: float or int = 1):
         """
@@ -65,9 +53,10 @@ class HeroControlBase:
         :return:
         """
         x, y = attack
-        self._attack(x, y, t)
+        logger.info("执行普通攻击")
+        self.adb.touch(x, y, t)
 
-    def skill_attack(self,skill_coordinate:Tuple[int,int],t: float or int = 0.1):
+    def skill_attack(self, skill_coordinate: Tuple[int, int], t: float or int = 0.1):
         """
         技能攻击
         :param skill_coordinate: 技能坐标
@@ -75,17 +64,18 @@ class HeroControlBase:
         :return:
         """
         x, y = skill_coordinate
-        self._attack(x, y, t)
+        logger.info("执行技能攻击")
+        self.adb.touch(x, y, t)
 
-    def awaken_attack(self,t: float or int = 0.1):
+    def awaken_attack(self, t: float or int = 0.1):
         """
         觉醒技能攻击
         :param t:
         :return:
         """
         x, y = awaken_skill
-        self._attack(x, y, t)
-
+        logger.info("执行觉醒攻击")
+        self.adb.touch(x, y, t)
 
 
 if __name__ == '__main__':

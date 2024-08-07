@@ -1,9 +1,8 @@
 import random
-from typing import Tuple
+from typing import Tuple, List
 
 from utils.yolov5 import YoloV5s
 from utils.logger import logger
-from game_control import GameControl
 from device_manager.scrcpy_adb import ScrcpyADB
 from hero_control.hero_control import get_hero_control
 import time
@@ -20,10 +19,6 @@ def get_detect_obj_bottom(obj: Detect_Object) -> Tuple[int, int]:
     :return:
     """
     return int(obj.rect.x + obj.rect.w / 2), int(obj.rect.y + obj.rect.h)
-
-
-def distance_detect_object(a: Detect_Object, b: Detect_Object):
-    return math.sqrt((a.rect.x - b.rect.x) ** 2 + (a.rect.y - b.rect.y) ** 2)
 
 
 def calc_angle(x1, y1, x2, y2):
@@ -54,6 +49,30 @@ def is_within_error_margin(coord1: Tuple[int, int], coord2: Tuple[int, int], x_e
     return x_error <= x_error_margin and y_error <= y_error_margin
 
 
+def calculate_distance(coord1: Tuple[int, int], coord2: Tuple[int, int]) -> float:
+    """
+    计算两个坐标之间的欧几里得距离
+    :param coord1: 第一个坐标 (x, y)
+    :param coord2: 第二个坐标 (x, y)
+    :return: 距离
+    """
+    return math.sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
+
+
+def find_nearest_target_to_the_hero(hero: Tuple[int, int], target: List[Tuple[int, int]]):
+    """
+    寻找到距离英雄最近的目标
+    :param hero: 英雄的坐标 (x, y)
+    :param target: 怪物坐标的列表 [(x1, y1), (x2, y2), ...]
+    :return: 距离英雄最近的怪物坐标 (x, y)
+    """
+    if not target:
+        return None
+
+    closest_target = min(target, key=lambda t: calculate_distance(hero, t))
+    return closest_target
+
+
 class GameAction:
     """
     游戏控制
@@ -74,12 +93,22 @@ class GameAction:
         """
         pass
 
-    def get_map_info(self):
+    def get_map_info(self, frame=None, show=False):
         """
         获取当前地图信息
         :return:
         """
-        result = self.yolo(self.adb.last_screen)
+        frame = self.adb.last_screen if frame is None else frame
+        result = self.yolo(frame)
+
+        if show:
+            for obj in result:
+                color = (0, 255, 0)
+                if obj.label == 1:
+                    color = (255, 0, 0)
+                elif obj.label == 5:
+                    color = (0, 0, 255)
+                cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
 
         result_dict = {
             "Hero": [],
@@ -136,7 +165,10 @@ class GameAction:
         :return:
         """
         hx, hy = map_info["Hero"]["bottom_centers"][0]
-        mx, my = map_info["Monster"]["bottom_centers"][0]
+        monster = map_info["Monster"]["bottom_centers"]
+
+        closest_monster = find_nearest_target_to_the_hero((hx, hy), monster)
+        mx, my = closest_monster
 
         if is_within_error_margin((hx, hy), (mx, my)):
             self.ctrl.skill_combo_1()
@@ -173,7 +205,6 @@ class GameAction:
         移动到下一个房间
         :return:
         """
-        mov_start = False
         logger.info("开始跑图")
         while True:
             time.sleep(0.1)
@@ -189,50 +220,34 @@ class GameAction:
                 self.adb.touch_end(0, 0)
                 return
 
-            result = self.yolo(screen)
-            for obj in result:
-                color = (0, 255, 0)
-                if obj.label == 1:
-                    color = (255, 0, 0)
-                elif obj.label == 5:
-                    color = (0, 0, 255)
-                cv.rectangle(screen, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
-
-            hero = [x for x in result if x.label == 0.0]
-            if len(hero) == 0:
+            map_info = self.get_map_info(screen)
+            if map_info["Hero"]["count"] == 0:
                 logger.info("没有找到英雄")
                 self.random_move()
-                hero = None
                 continue
             else:
-                hero = hero[0]
-                hx, hy = get_detect_obj_bottom(hero)
-                cv.circle(screen, (hx, hy), 5, (0, 0, 125), 5)
+                hx, hy = map_info["Hero"]["bottom_centers"][0]
 
-            arrow = [x for x in result if x.label == 5]
-            if len(arrow) == 0:
+            if map_info["Mark"]["count"] == 0:
+                self.random_move()
                 continue
-            min_distance_arrow = min(arrow, key=lambda a: distance_detect_object(hero, a))
+            else:
+                marks = map_info["Mark"]["bottom_centers"]
 
-            ax, ay = get_detect_obj_bottom(min_distance_arrow)
+            closest_mark = find_nearest_target_to_the_hero((hx, hy), marks)
+            if closest_mark is None:
+                continue
+            mx, my = closest_mark
             cv.circle(screen, (hx, hy), 5, (0, 255, 0), 5)
-            cv.arrowedLine(screen, (hx, hy), (ax, ay), (255, 0, 0), 3)
-            angle = calc_angle(hx, hy, ax, ay)
-            sx, sy = self.ctrl.calc_mov_point(angle)
-            logger.info(f"angle:{angle},sx:{sx},sy:{sy}")
-
-            if not mov_start:
-                self.adb.touch_start(sx, sy)
-                mov_start = True
-            else:
-                self.adb.touch_move(sx, sy)
-
+            cv.arrowedLine(screen, (hx, hy), (mx, my), (255, 0, 0), 3)
+            angle = calc_angle(hx, hy, mx, my)
+            self.ctrl.move(angle)
             cv.imshow('screen', screen)
             cv.waitKey(1)
 
 
 if __name__ == '__main__':
-    action = GameAction('hong_yan',ScrcpyADB())
+    action = GameAction('hong_yan', ScrcpyADB())
     while True:
         action.mov_to_next_room()
         time.sleep(3)

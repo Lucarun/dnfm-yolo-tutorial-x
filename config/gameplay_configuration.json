@@ -1,0 +1,29 @@
+{
+  "1": {
+    "status": true,
+    "map": "bwj",
+    "sy": true,
+    "automatic_auction": false,
+    "task_delegate_carbon": false,
+    "task_delegate_crystallize": false,
+    "reserve_fatigue_value": 0
+  },
+  "2": {
+    "status": true,
+    "map": "bwj",
+    "sy": true,
+    "automatic_auction": false,
+    "task_delegate_carbon": false,
+    "task_delegate_crystallize": false,
+    "reserve_fatigue_value": 0
+  },
+  "3": {
+    "status": true,
+    "map": "bwj",
+    "sy": true,
+    "automatic_auction": false,
+    "task_delegate_carbon": false,
+    "task_delegate_crystallize": false,
+    "reserve_fatigue_value": 0
+  }
+}

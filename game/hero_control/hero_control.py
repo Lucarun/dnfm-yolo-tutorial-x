@@ -5,22 +5,22 @@
 from device_manager.scrcpy_adb import ScrcpyADB
 
 
-def get_hero_control(name: str, adb: ScrcpyADB):
+def get_hero_control(name: str, scrcpy_adb: ScrcpyADB):
     """
     获取英雄控制的实例
     :param name:英雄名称
-    :param adb:设备链接实例
+    :param scrcpy_adb:设备链接实例
     :return:
     """
     if name == 'nai_ma':
         from game.hero_control.nai_ma import NaiMa
-        return NaiMa(adb)
+        return NaiMa(scrcpy_adb)
     elif name == 'nan_qiang_pao':
-        from game.hero_control.nan_qiang_pao import NanQiangPao
-        return NanQiangPao(adb)
+        from game.hero_control.nan_da_qiang import NanDaQiang
+        return NanDaQiang(scrcpy_adb)
     elif name == 'hong_yan':
         from game.hero_control.hong_yan import HongYan
-        return HongYan(adb)
+        return HongYan(scrcpy_adb)
     else:
         raise ValueError(f'{name} is not support')
 
