@@ -30,18 +30,19 @@ def calc_angle(hero_pos: Tuple[int, int], target_pos: Tuple[int, int]) -> float:
     角度从正 x 轴（向右方向）逆时针计算
     :return:
     """
-    dx = target_pos[0] - hero_pos[0]
-    dy = target_pos[1] - hero_pos[1]
+    # 计算两点之间的水平和垂直距离,这里需要注意的是，手机玩游戏的时候是横屏，所以 X 坐标和 Y 坐标是需要对调的
+    delta_x = target_pos[1] - hero_pos[1]
+    delta_y = target_pos[0] - hero_pos[0]
 
-    # 计算弧度角
-    angle_rad = math.atan2(dy, dx)
-
-    # 将弧度转换为角度
+    # 计算角度（以正右方向为0度，正上方为90度）
+    angle_rad = math.atan2(delta_y, delta_x)
     angle_deg = math.degrees(angle_rad)
 
-    # 确保角度在 [0, 360) 范围内
+    # 将角度调整到0到90度范围内
     if angle_deg < 0:
         angle_deg += 360
+    elif angle_deg > 90:
+        angle_deg -= 90
 
     return angle_deg
 
@@ -197,7 +198,8 @@ class GameAction:
         start_move = False
         while True:
             map_info = self.get_map_info(show=True)
-            if map_info["Item"]["count"] == 0:
+            itme_list = self.is_exist_item(map_info)
+            if not itme_list:
                 logger.info("材料全部捡完")
                 self.adb.touch_end(0, 0)
                 return True
@@ -208,32 +210,27 @@ class GameAction:
                 else:
                     # 循环捡东西
                     hx, hy = map_info["hero"]["bottom_centers"][0]
-                    item_bottom_centers = map_info["equipment"]["bottom_centers"]
-                    closest_item = find_nearest_target_to_the_hero((hx, hy), item_bottom_centers)
-                    ix, iy = closest_item
-                    angle = calc_angle((hx, hy), (ix, iy))
+                    closest_item = find_nearest_target_to_the_hero((hx, hy), itme_list)
+                    angle = calc_angle((hx, hy), closest_item)
                     if not start_move:
                         self.ctrl.touch_roulette_wheel()
                         start_move = True
                     else:
                         self.ctrl.swipe_roulette_wheel(angle)
 
-    def _kill_monsters(self, map_info):
+    def _kill_monsters(self, hero_pos: Tuple[int, int], monster_pos: List[Tuple[int, int]]):
         """
         击杀怪物
         :return:
         """
-        hx, hy = map_info["Hero"]["bottom_centers"][0]
-        monster = map_info["Monster"]["bottom_centers"]
 
-        closest_monster = find_nearest_target_to_the_hero((hx, hy), monster)
-        mx, my = closest_monster
+        closest_monster = find_nearest_target_to_the_hero(hero_pos, monster_pos)
 
-        if is_within_error_margin((hx, hy), (mx, my)):
+        if is_within_error_margin(hero_pos, closest_monster):
             self.ctrl.skill_combo_1()
             self.ctrl.normal_attack(3)
         else:
-            angle = calc_angle((hx, hy), (mx, my))
+            angle = calc_angle(hero_pos, closest_monster)
             self.ctrl.move(angle, 0.2)
 
     def room_kill_monsters(self):
@@ -251,8 +248,8 @@ class GameAction:
                 room_skill_combo_status = True
 
             map_info = self.get_map_info(show=True)
-            # 没有怪物了就认为当前房间击杀成功了
-            if map_info["Monster"]["count"] == 0:
+            monster_list = self.is_exist_monster(map_info)
+            if not monster_list:
                 logger.info("怪物击杀完毕")
                 return True
             else:
@@ -260,18 +257,52 @@ class GameAction:
                     self.random_move()
                     continue
                 else:
-                    self._kill_monsters(map_info)
+                    hx, hy = map_info["hero"]["bottom_centers"][0]
+                    self._kill_monsters((hx, hy), monster_list)
 
     @staticmethod
-    def is_meet_the_conditions_for_mobility(map_info):
+    def is_exist_monster(map_info):
+        """
+        判断房间是否存在怪物,如果存在怪物就把怪物坐标返回去，否则返回空
+        :return:
+        """
+        if map_info["Monster"]["count"] or map_info["Monster_ds"]["count"] or map_info["Monster_szt"]["count"] == 0:
+            return []
+        else:
+            monster = []
+            if map_info["Monster"]["count"] > 0:
+                monster.extend(map_info["Monster"]["bottom_centers"])
+            if map_info["Monster_ds"]["count"] > 0:
+                monster.extend(map_info["Monster_ds"]["bottom_centers"])
+            if map_info["Monster_szt"]["count"] > 0:
+                monster.extend(map_info["Monster_szt"]["bottom_centers"])
+            return monster
+
+    @staticmethod
+    def is_exist_item(map_info):
+        """
+        判断房间是否材料
+        :return:
+        """
+        if map_info["card"]["count"] or map_info["equipment"]["count"] == 0:
+            return []
+        else:
+            item = []
+            if map_info["card"]["count"] > 0:
+                item.extend(map_info["card"]["bottom_centers"])
+            if map_info["equipment"]["count"] > 0:
+                item.extend(map_info["card"]["bottom_centers"])
+            return item
+
+    def is_allow_move(self, map_info):
         """
         判断是否满足移动条件，如果不满足返回原因
         :return:
         """
-        if map_info["Monster"]["count"] or map_info["Monster_ds"]["count"] or map_info["Monster_szt"]["count"] != 0:
+        if self.is_exist_monster(map_info):
             logger.info("怪物未击杀完毕，不满足过图条件")
             return False, "怪物未击杀"
-        if map_info["equipment"]["count"] != 0:
+        if self.is_exist_item(map_info):
             logger.info("存在没检的材料，不满足过图条件")
             return False, "存在没检的材料"
         return True, ""
@@ -303,7 +334,7 @@ class GameAction:
                 hx, hy = map_info["hero"]["bottom_centers"][0]
 
             # 判断是否达到移动下一个房间的条件
-            conditions, reason = self.is_meet_the_conditions_for_mobility(map_info)
+            conditions, reason = self.is_allow_move(map_info)
             if not conditions:
                 return False, reason
 
@@ -318,7 +349,6 @@ class GameAction:
             if closest_mark is None:
                 continue
             mx, my = closest_mark
-            # TODO 这里有 bug，不能直接这样计算坐标，要以 0.0 坐标计算
             angle = calc_angle((hx, hy), (mx, my))
             # 根据箭头方向和下一步前行的方向判断要不要跟着箭头走
             mark_direction = calculate_direction_based_on_angle(angle)
@@ -352,7 +382,7 @@ class GameAction:
 if __name__ == '__main__':
     action = GameAction('nv_qi_gong', ScrcpyADB())
     # for i in range(5):
-    action.mov_to_next_room()
-#     # action.get_items()
-#     time.sleep(3)
-# print(calc_angle((100, 100), (0, 100)))
+    # action.mov_to_next_room()
+    #     # action.get_items()
+    #     time.sleep(3)
+    # print(calc_angle((472, 1328), (788, 1655)))
