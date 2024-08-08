@@ -86,8 +86,8 @@ class ScrcpyADB:
         :return:
         """
         font = cv.FONT_HERSHEY_SIMPLEX  # 字体样式
-        font_scale = 0.5  # 字体大小
-        thickness = 1  # 文本线条厚
+        font_scale = 1  # 字体大小
+        thickness = 3  # 文本线条厚
 
         for obj in objs:
             color = TARGET_COLOUR.get(obj.label)

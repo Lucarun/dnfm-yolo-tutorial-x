@@ -31,18 +31,12 @@ def calc_angle(hero_pos: Tuple[int, int], target_pos: Tuple[int, int]) -> float:
     :return:
     """
     # 计算两点之间的水平和垂直距离,这里需要注意的是，手机玩游戏的时候是横屏，所以 X 坐标和 Y 坐标是需要对调的
-    delta_x = target_pos[1] - hero_pos[1]
-    delta_y = target_pos[0] - hero_pos[0]
+    delta_y = target_pos[1] - hero_pos[1]
+    delta_x = target_pos[0] - hero_pos[0]
 
     # 计算角度（以正右方向为0度，正上方为90度）
     angle_rad = math.atan2(delta_y, delta_x)
-    angle_deg = math.degrees(angle_rad)
-
-    # 将角度调整到0到90度范围内
-    if angle_deg < 0:
-        angle_deg += 360
-    elif angle_deg > 90:
-        angle_deg -= 90
+    angle_deg = 180 - int(angle_rad * 180 / math.pi)
 
     return angle_deg
 
@@ -382,7 +376,7 @@ class GameAction:
 if __name__ == '__main__':
     action = GameAction('nv_qi_gong', ScrcpyADB())
     # for i in range(5):
-    # action.mov_to_next_room()
+    action.mov_to_next_room()
     #     # action.get_items()
     #     time.sleep(3)
     # print(calc_angle((472, 1328), (788, 1655)))
