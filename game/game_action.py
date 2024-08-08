@@ -74,6 +74,44 @@ def find_nearest_target_to_the_hero(hero: Tuple[int, int], target: List[Tuple[in
     return closest_target
 
 
+def calculate_direction_based_on_angle(angle: int or float):
+    """
+    根据角度计算方向
+    :param angle:
+    :return:
+    """
+    if 0 <= angle <= 360:
+        if 0 <= angle <= 90:
+            return ["up", "right"]
+        elif 90 < angle <= 180:
+            return ["up", "left"]
+        elif 180 < angle <= 270:
+            return ["down", "left"]
+        else:
+            return ["down", "right"]
+    else:
+        return None
+
+
+def find_door_in_direction(doors: List[Tuple[int, int]], direction: str) -> Tuple[int, int]:
+    """
+    找到符合前进方向的门
+    :param doors:
+    :param direction:
+    :return:
+    """
+    if direction == 'left':
+        return min(doors, key=lambda door: door[0])
+    elif direction == 'right':
+        return max(doors, key=lambda door: door[0])
+    elif direction == 'up':
+        return min(doors, key=lambda door: door[1])
+    elif direction == 'down':
+        return max(doors, key=lambda door: door[1])
+    else:
+        raise ValueError("Invalid direction")
+
+
 class GameAction:
     """
     游戏控制
@@ -96,6 +134,7 @@ class GameAction:
         self.room_index = 0
         self.special_room = False  # 狮子头
         self.boss_room = False  # boss
+        self.next_room_direction = None  # 下一个房间的方向
 
     def random_move(self):
         """
@@ -103,7 +142,7 @@ class GameAction:
         :return:
         """
         logger.info("随机移动一下")
-        self.ctrl.move(random.randint(0, 360), 0.2)
+        self.ctrl.move(random.randint(0, 360), 0.5)
 
     def get_map_info(self, frame=None, show=False):
         """
@@ -230,9 +269,23 @@ class GameAction:
                 else:
                     self._kill_monsters(map_info)
 
+    @staticmethod
+    def is_meet_the_conditions_for_mobility(map_info):
+        """
+        判断是否满足移动条件，如果不满足返回原因
+        :return:
+        """
+        if map_info["Monster"]["count"] or map_info["Monster_Fake"]["count"] != 0:
+            logger.info("怪物未击杀完毕，不满足过图条件")
+            return False, "怪物未击杀"
+        if map_info["Item"]["count"] != 1:
+            logger.info("存在没检的材料，不满足过图条件")
+            return False, "存在没检的材料"
+        return True, ""
+
     def mov_to_next_room(self):
         """
-        移动到下一个房间
+        根据门的位置移动到下一个房间
         :return:
         """
         start_move = False
@@ -256,6 +309,11 @@ class GameAction:
             else:
                 hx, hy = map_info["Hero"]["bottom_centers"][0]
 
+            # 判断是否达到移动下一个房间的条件
+            conditions, reason = self.is_meet_the_conditions_for_mobility()
+            if not conditions:
+                return False, reason
+
             if map_info["Mark"]["count"] == 0:
                 logger.info("没有找到标记")
                 self.random_move()
@@ -267,16 +325,32 @@ class GameAction:
             if closest_mark is None:
                 continue
             mx, my = closest_mark
-            cv.circle(screen, (hx, hy), 5, (0, 255, 0), 5)
-            cv.arrowedLine(screen, (hx, hy), (mx, my), (255, 0, 0), 3)
-            cv.imshow('screen', screen)
-            cv.waitKey(1)
             angle = calc_angle(hx, hy, mx, my)
-            if not start_move:
-                self.ctrl.touch_roulette_wheel()
-                start_move = True
+            # 根据箭头方向和下一步前行的方向判断要不要跟着箭头走
+            mark_direction = calculate_direction_based_on_angle(angle)
+            if self.next_room_direction in mark_direction:
+                if not start_move:
+                    self.ctrl.touch_roulette_wheel()
+                    start_move = True
+                else:
+                    self.ctrl.swipe_roulette_wheel(angle)
+            # 狮子头房间的反向和箭头指引方向不一致，这里要处理一下进入狮子头的房间
+            # 获取到门的坐标后进行移动，需要考虑的是可能当前视野内没有获取到狮子头的门，别进错了
             else:
-                self.ctrl.swipe_roulette_wheel(angle)
+                logger.info("箭头和指引反向不一致，开始找门过图")
+                if map_info["Gate"]["count"] == 0:
+                    logger.info("没有找到门的坐标")
+                    self.random_move()
+                    continue
+                else:
+                    gates = map_info["Gate"]["bottom_centers"]
+                gx, gy = find_door_in_direction(gates, self.next_room_direction)
+                angle = calc_angle(hx, hy, gx, gy)
+                if not start_move:
+                    self.ctrl.touch_roulette_wheel()
+                    start_move = True
+                else:
+                    self.ctrl.swipe_roulette_wheel(angle)
 
 
 if __name__ == '__main__':
