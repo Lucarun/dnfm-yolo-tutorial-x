@@ -14,3 +14,5 @@ class PathManager:
     PROJECT_NAME = ROOT_OATH.split('/')[-1]
 
     LOG_PATH = ROOT_OATH + '/logs/'
+
+    MODEL_PATH = ROOT_OATH + '/model/'

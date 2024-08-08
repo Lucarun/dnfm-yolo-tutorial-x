@@ -11,13 +11,14 @@
 # under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
-
+import os.path
 import time
 import numpy as np
 import ncnn
 from ncnn.model_zoo.model_store import get_model_file
 from ncnn.utils.objects import Detect_Object
 from ncnn.utils.functional import *
+from utils.path_manager import PathManager
 
 
 class YoloV5Focus(ncnn.Layer):
@@ -60,12 +61,12 @@ def YoloV5Focus_layer_destroyer(layer):
 
 class YoloV5s:
     def __init__(
-        self,
-        target_size=640,
-        prob_threshold=0.25,
-        nms_threshold=0.45,
-        num_threads=1,
-        use_gpu=False,
+            self,
+            target_size=640,
+            prob_threshold=0.25,
+            nms_threshold=0.45,
+            num_threads=1,
+            use_gpu=False,
     ):
         self.target_size = target_size
         self.prob_threshold = prob_threshold
@@ -86,8 +87,19 @@ class YoloV5s:
 
         # original pretrained model from https://github.com/ultralytics/yolov5
         # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-        self.net.load_param('ncnn.param')
-        self.net.load_model("ncnn.bin")
+        param_path = os.path.join(PathManager.MODEL_PATH, "new.param")
+        bin_path = os.path.join(PathManager.MODEL_PATH, "new.bin")
+        classes_path = os.path.join(PathManager.MODEL_PATH, "new.txt")
+
+        # 确保文件存在
+        if not os.path.exists(param_path):
+            raise FileNotFoundError(f"{param_path} not found")
+        if not os.path.exists(bin_path):
+            raise FileNotFoundError(f"{bin_path} not found")
+        # original pretrained model from https://github.com/ultralytics/yolov5
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+        self.net.load_param(param_path)
+        self.net.load_model(bin_path)
 
         self.grid = [make_grid(10, 6), make_grid(20, 12), make_grid(40, 24)]
         self.stride = np.array([32, 16, 8])
@@ -100,14 +112,7 @@ class YoloV5s:
         ).reshape((3, 1, 3, 1, 1, 2))
 
         self.class_names = [
-            "Hero",
-            "Monster",
-            "npc",
-            "Gate",
-            "Item",
-            "Mark",
-            "Monster_Fake",
-            "Switch",
+            line.strip() for line in open(classes_path).readlines()
         ]
 
     def __del__(self):
@@ -154,8 +159,8 @@ class YoloV5s:
         # 改动部分 Permute
         # anchor setting from yolov5/models/yolov5s.yaml
         ret1, mat_out1 = ex.extract("output")  # stride 8
-        ret2, mat_out2 = ex.extract("354")  # stride 16
-        ret3, mat_out3 = ex.extract("366")  # stride 32
+        ret2, mat_out2 = ex.extract("364")  # stride 16
+        ret3, mat_out3 = ex.extract("381")  # stride 32
 
         pred = [np.array(mat_out3), np.array(mat_out2), np.array(mat_out1)]
         z = []
@@ -168,8 +173,8 @@ class YoloV5s:
                 num_grid_y = mat_in_pad.h // self.stride[i]
                 num_grid_x = num_grid // num_grid_y
             if (
-                self.grid[i].shape[0] != num_grid_x
-                or self.grid[i].shape[1] != num_grid_y
+                    self.grid[i].shape[0] != num_grid_x
+                    or self.grid[i].shape[1] != num_grid_y
             ):
                 self.grid[i] = make_grid(num_grid_x, num_grid_y)
 
@@ -204,13 +209,13 @@ class YoloV5s:
         return objects
 
     def non_max_suppression(
-        self,
-        prediction,
-        conf_thres=0.1,
-        iou_thres=0.6,
-        merge=False,
-        classes=None,
-        agnostic=False,
+            self,
+            prediction,
+            conf_thres=0.1,
+            iou_thres=0.6,
+            merge=False,
+            classes=None,
+            agnostic=False,
     ):
         """Performs Non-Maximum Suppression (NMS) on inference results
 
@@ -254,7 +259,7 @@ class YoloV5s:
                 conf, j = x[:, 5:].max(1, keepdim=True)
                 x = np.concatenate((box, conf, j.float()), axis=1)[
                     conf.view(-1) > conf_thres
-                ]
+                    ]
 
             # Filter by class
             if classes:

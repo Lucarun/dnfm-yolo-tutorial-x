@@ -80,8 +80,7 @@ class ScrcpyADB:
                 except Exception as e:
                     logger.error(e)
 
-    @staticmethod
-    def picture_frame(frame: cv.Mat, objs: [Detect_Object]):
+    def picture_frame(self,frame: cv.Mat, objs: [Detect_Object]):
         """
         在 cv 中画出目标框，并显示标签名称和置信度
         :return:
@@ -94,8 +93,10 @@ class ScrcpyADB:
             color = TARGET_COLOUR.get(obj.label)
             cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
 
-            # 显示标签名称和置信度
-            label_text = f"{obj.label}: {obj.confidence:.2f}"
+            # 构造显示的标签文本
+            label_text = f"{self.yolo.class_names[int(obj.label)]}:{obj.prob:.2f}"
+
+            # 计算文本位置
             text_size, _ = cv.getTextSize(label_text, font, font_scale, thickness)
             text_x = int(obj.rect.x)
             text_y = int(obj.rect.y - 5)  # 将文本放置在矩形框上方
@@ -104,9 +105,11 @@ class ScrcpyADB:
             if text_y < 0:
                 text_y = int(obj.rect.y + obj.rect.h + 5)
 
-            cv.putText(frame, label_text, (text_x, text_y), font, font_scale, color, thickness)
-            cv.imshow('frame', frame)
-            cv.waitKey(1)
+            # 绘制标签文本
+            cv.putText(frame, label_text, (text_x, text_y), font, font_scale, color, thickness=thickness)
+
+        cv.imshow('frame', frame)
+        cv.waitKey(1)
 
     def touch_start(self, x: int or float, y: int or float):
         """
