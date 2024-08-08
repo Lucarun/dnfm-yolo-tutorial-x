@@ -10,6 +10,9 @@ import time
 import scrcpy
 from adbutils import adb
 import cv2 as cv
+from ncnn.utils import Detect_Object
+
+from device_manager.constant import TARGET_COLOUR
 from utils.logger import logger
 from utils.yolov5 import YoloV5s
 
@@ -20,12 +23,12 @@ class ScrcpyADB:
     """
 
     def __init__(self):
-        devices = adb.device_list()
+        devices = adb.device_list()[0]
         if not devices:
             raise Exception("No devices connected")
         adb.connect("127.0.0.1:5555")
 
-        self.client = scrcpy.Client(device=devices[0], max_width=2688, max_fps=15)
+        self.client = scrcpy.Client(device=devices, max_width=2688, max_fps=15)
         self.client.add_listener(scrcpy.EVENT_FRAME, self.on_frame)
         self.client.start(threaded=True)
 
@@ -55,17 +58,7 @@ class ScrcpyADB:
             else:
                 try:
                     result = self.yolo(frame)
-                    for obj in result:
-                        color = (0, 255, 0)
-                        if obj.label == 0:
-                            color = (255, 0, 0)
-                        elif obj.label == 5:
-                            color = (0, 0, 255)
-
-                        cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
-                        cv.imshow('frame', frame)
-                        cv.waitKey(1)
-
+                    self.picture_frame(frame, result)
                 except Exception as e:
                     logger.error(e)
 
@@ -87,13 +80,33 @@ class ScrcpyADB:
                 except Exception as e:
                     logger.error(e)
 
-    def get_device_resolution(self):
+    @staticmethod
+    def picture_frame(frame: cv.Mat, objs: [Detect_Object]):
         """
-        获取设备分辨率
+        在 cv 中画出目标框，并显示标签名称和置信度
         :return:
         """
-        width, height = self.d.window_size()
-        return width, height
+        font = cv.FONT_HERSHEY_SIMPLEX  # 字体样式
+        font_scale = 0.5  # 字体大小
+        thickness = 1  # 文本线条厚
+
+        for obj in objs:
+            color = TARGET_COLOUR.get(obj.label)
+            cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
+
+            # 显示标签名称和置信度
+            label_text = f"{obj.label}: {obj.confidence:.2f}"
+            text_size, _ = cv.getTextSize(label_text, font, font_scale, thickness)
+            text_x = int(obj.rect.x)
+            text_y = int(obj.rect.y - 5)  # 将文本放置在矩形框上方
+
+            # 如果文本超出边界，则将其放置在矩形框下方
+            if text_y < 0:
+                text_y = int(obj.rect.y + obj.rect.h + 5)
+
+            cv.putText(frame, label_text, (text_x, text_y), font, font_scale, color, thickness)
+            cv.imshow('frame', frame)
+            cv.waitKey(1)
 
     def touch_start(self, x: int or float, y: int or float):
         """
