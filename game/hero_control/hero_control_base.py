@@ -34,6 +34,22 @@ class HeroControlBase:
         y = ry - r * math.sin(angle * math.pi / 180)
         return int(x), int(y)
 
+    def touch_roulette_wheel(self):
+        """
+        按压轮盘中心位置
+        :return:
+        """
+        rx, ry = roulette_wheel
+        self.adb.touch_start(rx, ry)
+
+    def swipe_roulette_wheel(self, angle: float):
+        """
+        转动轮盘位置
+        :return:
+        """
+        x, y = self.calc_mov_point(angle)
+        self.adb.touch_move(x, y)
+
     def move(self, angle: float, t: float = 0.5):
         """
         角色移动
@@ -44,7 +60,7 @@ class HeroControlBase:
         rx, ry = roulette_wheel
         # 计算轮盘x, y坐标
         x, y = self.calc_mov_point(angle)
-        logger.info(f"移动到坐标:{x},{y}")
+        logger.debug(f"移动到坐标:{x},{y}")
         self.adb.swipe(rx, ry, x, y, t)
 
     def normal_attack(self, t: float or int = 1):

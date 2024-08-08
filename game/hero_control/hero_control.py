@@ -21,6 +21,9 @@ def get_hero_control(name: str, scrcpy_adb: ScrcpyADB):
     elif name == 'hong_yan':
         from game.hero_control.hong_yan import HongYan
         return HongYan(scrcpy_adb)
+    elif name == 'nv_qi_gong':
+        from game.hero_control.nv_qi_gong import NvQiGong
+        return NvQiGong(scrcpy_adb)
     else:
         raise ValueError(f'{name} is not support')
 

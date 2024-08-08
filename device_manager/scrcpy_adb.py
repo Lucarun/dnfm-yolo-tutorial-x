@@ -52,21 +52,22 @@ class ScrcpyADB:
             # mac 系统需要把帧添加到队列
             if sys.platform.startswith('darwin'):
                 self.frame_queue.put(frame)
-            try:
-                result = self.yolo(frame)
-                for obj in result:
-                    color = (0, 255, 0)
-                    if obj.label == 0:
-                        color = (255, 0, 0)
-                    elif obj.label == 5:
-                        color = (0, 0, 255)
+            else:
+                try:
+                    result = self.yolo(frame)
+                    for obj in result:
+                        color = (0, 255, 0)
+                        if obj.label == 0:
+                            color = (255, 0, 0)
+                        elif obj.label == 5:
+                            color = (0, 0, 255)
 
-                    cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
-                    cv.imshow('frame', frame)
-                    cv.waitKey(1)
+                        cv.rectangle(frame, (int(obj.rect.x), int(obj.rect.y)), (int(obj.rect.x + obj.rect.w), int(obj.rect.y + + obj.rect.h)), color, 2)
+                        cv.imshow('frame', frame)
+                        cv.waitKey(1)
 
-            except Exception as e:
-                logger.error(e)
+                except Exception as e:
+                    logger.error(e)
 
     def display_frames(self):
         """
@@ -104,7 +105,7 @@ class ScrcpyADB:
         logger.info(f"touch start {x},{y}")
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
 
-    def _touch_move(self, x: int or float, y: int or float):
+    def touch_move(self, x: int or float, y: int or float):
         """
         触摸拖动
         :param x: 横坐标
@@ -142,11 +143,11 @@ class ScrcpyADB:
         :param end_y: 终点的 y 坐标
         :param t: 持续时间，默认 0.5 秒
         """
-        self.touch_start(scrcpy.ACTION_DOWN, start_x, start_y)
+        self.touch_start(start_x, start_y)
         time.sleep(0.2)
-        self._touch_move(scrcpy.ACTION_MOVE, end_x, end_y)
+        self.touch_move(end_x, end_y)
         time.sleep(t)
-        self.touch_end(scrcpy.ACTION_UP, end_x, end_y)
+        self.touch_end(end_x, end_y)
 
 
 if __name__ == '__main__':
