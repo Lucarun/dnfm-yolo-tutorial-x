@@ -19,8 +19,8 @@ class NaiMa(HeroControlBase):
         self.awaken_skill = awaken_skill  # 觉醒
         self.attack = attack  # 普通攻击
         self.room_skill_combo = {
-            1: self.skill_combo_1,
-            2: self.skill_combo_2,
+            (0, 0): self.skill_combo_1,
+            (0, -1): self.skill_combo_2,
         }
 
     def add_buff(self):
@@ -30,7 +30,6 @@ class NaiMa(HeroControlBase):
         """
         logger.info("加 buff")
         pass
-
 
     def skill_combo_1(self):
         """

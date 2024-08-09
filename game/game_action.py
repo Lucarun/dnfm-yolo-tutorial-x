@@ -133,7 +133,7 @@ class GameAction:
         LABLE_INDEX[i] = lable
 
     def __init__(self, hero_name: str, adb: ScrcpyADB):
-        self.ctrl = get_hero_control(hero_name, adb)
+        self.hero_ctrl = get_hero_control(hero_name, adb)
         self.yolo = YoloV5s(num_threads=4, use_gpu=True)
         self.adb = adb
         self.room_index = 0
@@ -147,7 +147,7 @@ class GameAction:
         :return:
         """
         logger.info("随机移动一下")
-        self.ctrl.move(random.randint(0, 360), 0.5)
+        self.hero_ctrl.move(random.randint(0, 360), 0.5)
 
     def get_map_info(self, frame=None, show=False):
         """
@@ -207,10 +207,10 @@ class GameAction:
                     closest_item = find_nearest_target_to_the_hero((hx, hy), itme_list)
                     angle = calc_angle((hx, hy), closest_item)
                     if not start_move:
-                        self.ctrl.touch_roulette_wheel()
+                        self.hero_ctrl.touch_roulette_wheel()
                         start_move = True
                     else:
-                        self.ctrl.swipe_roulette_wheel(angle)
+                        self.hero_ctrl.swipe_roulette_wheel(angle)
 
     def _kill_monsters(self, hero_pos: Tuple[int, int], monster_pos: List[Tuple[int, int]]):
         """
@@ -221,22 +221,23 @@ class GameAction:
         closest_monster = find_nearest_target_to_the_hero(hero_pos, monster_pos)
 
         if is_within_error_margin(hero_pos, closest_monster):
-            self.ctrl.skill_combo_1()
-            self.ctrl.normal_attack(3)
+            self.hero_ctrl.skill_combo_1()
+            self.hero_ctrl.normal_attack(3)
         else:
             angle = calc_angle(hero_pos, closest_monster)
-            self.ctrl.move(angle, 0.2)
+            self.hero_ctrl.move(angle, 0.2)
 
-    def room_kill_monsters(self):
+    def room_kill_monsters(self, room_coordinate):
         """
         击杀房间内的怪物
+        :param room_coordinate: 当前房间的坐标
         :return:
         """
         logger.info("开始击杀怪物")
         room_skill_combo_status = False
         while True:
             # 使用技能连招
-            room_skill_combo = self.ctrl.room_skill_combo.get(self.room_index, None)
+            room_skill_combo = self.hero_ctrl.room_skill_combo.get(room_coordinate, None)
             if room_skill_combo and not room_skill_combo_status:
                 room_skill_combo()
                 room_skill_combo_status = True
@@ -278,15 +279,21 @@ class GameAction:
         判断房间是否材料
         :return:
         """
-        if map_info["card"]["count"] or map_info["equipment"]["count"] == 0:
+        if map_info["equipment"]["count"] == 0:
             return []
         else:
-            item = []
-            if map_info["card"]["count"] > 0:
-                item.extend(map_info["card"]["bottom_centers"])
-            if map_info["equipment"]["count"] > 0:
-                item.extend(map_info["card"]["bottom_centers"])
-            return item
+            return map_info["equipment"]["bottom_centers"]
+
+    @staticmethod
+    def is_exist_reward(map_info):
+        """
+        判断是否存在翻牌奖励
+        :return:
+        """
+        if map_info["card"]["count"] == 0:
+            return []
+        else:
+            return map_info["card"]["bottom_centers"]
 
     def is_allow_move(self, map_info):
         """
@@ -308,9 +315,12 @@ class GameAction:
         :return:
         """
         start_move = False
+        hlx, hly = 0, 0
         logger.info("开始跑图")
+        move_count = 0
+        kasi = 0
         while True:
-            screen = self.ctrl.adb.last_screen
+            screen = self.hero_ctrl.adb.last_screen
             if screen is None:
                 continue
 
@@ -320,6 +330,11 @@ class GameAction:
                 self.adb.touch_end(0, 0)
                 return True
 
+            if kasi == 50:
+                logger.info("卡死次数超过 50 次，过图失败")
+                self.adb.touch_end(0, 0)
+                return False, "过图失败"
+
             map_info = self.get_map_info(screen, show=True)
             if map_info["hero"]["count"] == 0:
                 logger.info("没有找到英雄")
@@ -327,6 +342,13 @@ class GameAction:
                 continue
             else:
                 hx, hy = map_info["hero"]["bottom_centers"][0]
+                if move_count > 10:
+                    kasi = is_within_error_margin((hlx, hly), (hx, hy), 50, 50)
+                    if kasi:
+                        logger.info(f"英雄坐标长时间未变化，应该是卡死了，10 次前坐标：{hlx, hly}，当前坐标{hx, hy}，随机移动一下")
+                        self.random_move()
+                        kasi += 1
+                        continue
 
             # 判断是否达到移动下一个房间的条件
             conditions, reason = self.is_allow_move(map_info)
@@ -347,12 +369,13 @@ class GameAction:
             angle = calc_angle((hx, hy), (mx, my))
             # 根据箭头方向和下一步前行的方向判断要不要跟着箭头走
             mark_direction = calculate_direction_based_on_angle(angle)
+            move_count += 1
             if direction in mark_direction:
                 if not start_move:
-                    self.ctrl.touch_roulette_wheel()
+                    self.hero_ctrl.touch_roulette_wheel()
                     start_move = True
                 else:
-                    self.ctrl.swipe_roulette_wheel(angle)
+                    self.hero_ctrl.swipe_roulette_wheel(angle)
             # 狮子头房间的反向和箭头指引方向不一致，这里要处理一下进入狮子头的房间
             # 获取到门的坐标后进行移动，需要考虑的是可能当前视野内没有获取到狮子头的门，别进错了
             else:

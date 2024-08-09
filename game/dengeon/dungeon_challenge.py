@@ -83,37 +83,54 @@ class DungeonChallenge:
         self.select_and_challenge_dungeon()
 
         # 循环通关路线
-        for room_coordinate in self.dungeon.clearance_path:
-            kill_monsters = get_items = move = boss_room = False
-
-            if room_coordinate == self.dungeon.szt:
-                logger.info("进入狮子头房间")
-            elif room_coordinate == self.dungeon.clearance_path[-1]:
-                logger.info("进入 Boss 房间")
-                boss_room = True
+        while 1:
+            # 根据当前角色的 PL 判断要怎么刷图
+            fatigue_value = self.determine_fatigue_value()
+            if fatigue_value <= len(self.dungeon.boss_path):
+                clearance_path = self.dungeon.full_figure_path
             else:
-                logger.info(f"进入房间：{room_coordinate}")
-            while 1:
-                # 获取当前房间信息，判断房间状态，打怪>捡东西>移动
-                map_info = self.game_action.get_map_info()
-                if self.game_action.is_exist_monster(map_info):
-                    kill_monsters = self.game_action.room_kill_monsters()
-                elif self.game_action.is_exist_item(map_info):
-                    get_items = self.game_action.get_items()
-                else:
-                    # 打完 boss 要翻牌子，再次挑战
-                    if boss_room:
-                        self.reward_flip()
-                        if self.determine_fatigue_value() <= 0:
-                            logger.info("PL 耗尽")
-                            self.exit_dungeon()
-                            return True
-                        else:
-                            self.again_challenge()
-                            move = True
-                    else:
-                        direction = self.calculate_the_direction_of_the_next_room(room_coordinate)
-                        move = self.game_action.mov_to_next_room(direction)
+                clearance_path = self.dungeon.boss_path
 
-                if kill_monsters and get_items and move:
-                    break
+            for room_coordinate in clearance_path:
+                kill_monsters = get_items = move = boss_room = False
+
+                # 根据坐标判断当前在哪个房间
+                if room_coordinate == self.dungeon.szt:
+                    logger.info("进入狮子头房间")
+                elif room_coordinate == clearance_path[-1]:
+                    logger.info("进入 Boss 房间")
+                    boss_room = True
+                else:
+                    logger.info(f"进入房间：{room_coordinate}")
+
+                while 1:
+                    # 获取当前房间信息，判断房间状态，打怪>捡东西>移动
+                    map_info = self.game_action.get_map_info()
+                    if boss_room:
+                        # 打怪->翻牌->捡东西->再次挑战
+                        if self.game_action.is_exist_monster(map_info):
+                            kill_monsters = self.game_action.room_kill_monsters(room_coordinate)
+                        elif self.game_action.is_exist_reward(map_info):
+                            self.reward_flip()
+                        elif self.game_action.is_exist_item(map_info):
+                            get_items = self.game_action.get_items()
+                        else:
+                            fatigue_value = self.determine_fatigue_value()
+                            if fatigue_value <= 0:
+                                logger.info("PL 耗尽")
+                                self.exit_dungeon()
+                                return True
+                            else:
+                                self.again_challenge()
+                                break
+                    else:
+                        # 打怪->捡东西->移动
+                        if self.game_action.is_exist_monster(map_info):
+                            kill_monsters = self.game_action.room_kill_monsters(room_coordinate)
+                        elif self.game_action.is_exist_item(map_info):
+                            get_items = self.game_action.get_items()
+                        else:
+                            direction = self.calculate_the_direction_of_the_next_room(room_coordinate)
+                            move = self.game_action.mov_to_next_room(direction)
+                        if kill_monsters and get_items and move:
+                            break
