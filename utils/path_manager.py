@@ -16,3 +16,5 @@ class PathManager:
     LOG_PATH = ROOT_OATH + '/logs/'
 
     MODEL_PATH = ROOT_OATH + '/model/'
+
+    DUNGEON_INFO_PATH = ROOT_OATH + '/data/dungeon_info.json'

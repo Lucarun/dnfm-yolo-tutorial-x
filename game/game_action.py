@@ -31,8 +31,8 @@ def calc_angle(hero_pos: Tuple[int, int], target_pos: Tuple[int, int]) -> float:
     :return:
     """
     # 计算两点之间的水平和垂直距离,这里需要注意的是，手机玩游戏的时候是横屏，所以 X 坐标和 Y 坐标是需要对调的
-    delta_y = target_pos[1] - hero_pos[1]
-    delta_x = target_pos[0] - hero_pos[0]
+    delta_y = hero_pos[1] - target_pos[1]
+    delta_x = hero_pos[0] - target_pos[0]
 
     # 计算角度（以正右方向为0度，正上方为90度）
     angle_rad = math.atan2(delta_y, delta_x)
@@ -301,9 +301,10 @@ class GameAction:
             return False, "存在没检的材料"
         return True, ""
 
-    def mov_to_next_room(self):
+    def mov_to_next_room(self, direction=None):
         """
-        根据门的位置移动到下一个房间
+        移动到下一个房间
+        :param direction:
         :return:
         """
         start_move = False
@@ -346,7 +347,7 @@ class GameAction:
             angle = calc_angle((hx, hy), (mx, my))
             # 根据箭头方向和下一步前行的方向判断要不要跟着箭头走
             mark_direction = calculate_direction_based_on_angle(angle)
-            if self.next_room_direction in mark_direction:
+            if direction in mark_direction:
                 if not start_move:
                     self.ctrl.touch_roulette_wheel()
                     start_move = True

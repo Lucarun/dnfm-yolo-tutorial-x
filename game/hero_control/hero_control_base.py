@@ -28,14 +28,14 @@ class HeroControlBase:
         :return:
         """
         # 手机是横屏的，计算角度是按照横屏去计算的，所以这里要修改一下坐标判断
-        ry, rx = roulette_wheel
+        rx, ry = roulette_wheel
         r = 125
 
         # 将角度转换为弧度
         angle_rad = math.radians(angle)
 
-        x = rx + r * math.sin(angle_rad)
-        y = ry - r * math.cos(angle_rad)
+        x = rx + r * math.cos(angle_rad)
+        y = ry - r * math.sin(angle_rad)
         return int(x), int(y)
 
     def touch_roulette_wheel(self):
