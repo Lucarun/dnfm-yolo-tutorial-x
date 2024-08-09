@@ -21,6 +21,7 @@ class NaiMa(HeroControlBase):
         self.room_skill_combo = {
             (0, 0): self.skill_combo_1,
             (0, -1): self.skill_combo_2,
+            (1, -1): self.skill_combo_3,
         }
 
     def add_buff(self):

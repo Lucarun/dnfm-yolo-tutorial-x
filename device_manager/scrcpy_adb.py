@@ -6,6 +6,7 @@ import queue
 import sys
 import threading
 import time
+from typing import Tuple
 
 import scrcpy
 from adbutils import adb
@@ -28,7 +29,7 @@ class ScrcpyADB:
             raise Exception("No devices connected")
         adb.connect("127.0.0.1:5555")
 
-        self.client = scrcpy.Client(device=devices, max_width=2688, max_fps=15)
+        self.client = scrcpy.Client(device=devices, max_width=2688, max_fps=5)
         self.client.add_listener(scrcpy.EVENT_FRAME, self.on_frame)
         self.client.start(threaded=True)
 
@@ -80,7 +81,7 @@ class ScrcpyADB:
                 except Exception as e:
                     logger.error(e)
 
-    def picture_frame(self,frame: cv.Mat, objs: [Detect_Object]):
+    def picture_frame(self, frame: cv.Mat, objs: [Detect_Object]):
         """
         在 cv 中画出目标框，并显示标签名称和置信度
         :return:
@@ -111,59 +112,55 @@ class ScrcpyADB:
         cv.imshow('frame', frame)
         cv.waitKey(1)
 
-    def touch_start(self, x: int or float, y: int or float):
+    def touch_start(self, coordinate: Tuple[int or float, int or float]):
         """
         触摸屏幕
-        :param x:横坐标
-        :param y:纵坐标
+        :param coordinate:坐标
         :return:
         """
-        logger.info(f"touch start {x},{y}")
+        x, y = coordinate
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_DOWN)
 
-    def touch_move(self, x: int or float, y: int or float):
+    def touch_move(self, coordinate: Tuple[int or float, int or float]):
         """
         触摸拖动
-        :param x: 横坐标
-        :param y: 纵坐标
+        :param coordinate: 坐标
         :return:
         """
+        x, y = coordinate
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_MOVE)
 
-    def touch_end(self, x: int or float, y: int or float):
+    def touch_end(self, coordinate: Tuple[int or float, int or float] = (0, 0)):
         """
         释放触摸
-        :param x:
-        :param y:
+        :param coordinate:坐标
         :return:
         """
+        x, y = coordinate
         self.client.control.touch(int(x), int(y), scrcpy.ACTION_UP)
 
-    def touch(self, x: int or float, y: int or float, t: int or float = 0.5):
+    def touch(self, coordinate: Tuple[int or float, int or float], t: int or float = 0.5):
         """
-        :param x:
-        :param y:
-        :param t:
+        :param coordinate:坐标
+        :param t:按压时间
         :return:
         """
-        self.touch_start(x, y)
+        self.touch_start(coordinate)
         time.sleep(t)
-        self.touch_end(x, y)
+        self.touch_end()
 
-    def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int, t: int or float = 0.5):
+    def swipe(self, start_coordinate: Tuple[int or float, int or float], end_coordinate: Tuple[int or float, int or float], t: int or float = 0.5):
         """
         实现屏幕拖动（滑动手势）
-        :param start_x: 起始点的 x 坐标
-        :param start_y: 起始点的 y 坐标
-        :param end_x: 终点的 x 坐标
-        :param end_y: 终点的 y 坐标
+        :param start_coordinate: 起始点的坐标
+        :param end_coordinate: 结束点的坐标
         :param t: 持续时间，默认 0.5 秒
         """
-        self.touch_start(start_x, start_y)
-        time.sleep(0.2)
-        self.touch_move(end_x, end_y)
+        self.touch_start(start_coordinate)
+        time.sleep(0.1)
+        self.touch_move(end_coordinate)
         time.sleep(t)
-        self.touch_end(end_x, end_y)
+        self.touch_end()
 
 
 if __name__ == '__main__':
@@ -172,7 +169,7 @@ if __name__ == '__main__':
     # debug_img = "/Users/admin/project/dnfm-yolo-tutorial/data/debug_img/local_send.png"
     # screenshot = sadb.d.screenshot(format="opencv")
     time.sleep(1)
-    sadb.touch(2257, 949)
+    sadb.touch((2257, 949))
 
     # sadb.display_frames()
     time.sleep(222)

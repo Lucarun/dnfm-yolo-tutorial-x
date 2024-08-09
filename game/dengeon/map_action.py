@@ -6,7 +6,7 @@ from typing import Tuple, List
 from utils.yolov5 import YoloV5s
 from utils.logger import logger
 from device_manager.scrcpy_adb import ScrcpyADB
-from hero_control.hero_control import get_hero_control
+from game.hero_control.hero_control import get_hero_control
 from utils.path_manager import PathManager
 import time
 import cv2 as cv
@@ -103,23 +103,19 @@ def calculate_direction_based_on_angle(angle: int or float):
         return None
 
 
-def find_door_in_direction(doors: List[Tuple[int, int]], direction: str) -> Tuple[int, int]:
+def get_door_coordinate_by_direction(direction):
     """
-    找到符合前进方向的门
-    :param doors:
+    根据方向计算下一个房间的门 lable
     :param direction:
     :return:
     """
-    if direction == 'left':
-        return min(doors, key=lambda door: door[0])
-    elif direction == 'right':
-        return max(doors, key=lambda door: door[0])
-    elif direction == 'up':
-        return min(doors, key=lambda door: door[1])
-    elif direction == 'down':
-        return max(doors, key=lambda door: door[1])
-    else:
-        raise ValueError("Invalid direction")
+    direction_to_direction = {
+        "up": "opendoor_u",
+        "down": "opendoor_d",
+        "left": "opendoor_l",
+        "right": "opendoor_r",
+    }
+    return direction_to_direction.get(direction, "")
 
 
 class GameAction:
@@ -195,10 +191,10 @@ class GameAction:
             itme_list = self.is_exist_item(map_info)
             if not itme_list:
                 logger.info("材料全部捡完")
-                self.adb.touch_end(0, 0)
+                self.adb.touch_end()
                 return True
             else:
-                if map_info["Hero"]["count"] != 1:
+                if map_info["hero"]["count"] != 1:
                     self.random_move()
                     continue
                 else:
@@ -233,6 +229,7 @@ class GameAction:
         :param room_coordinate: 当前房间的坐标
         :return:
         """
+        # TODO 目前还有两个问题，1：怪物多的时候，视频比较卡，导致画面信息和实际游戏画面不一致，操作变形；2：有时候英雄会把怪物挡住，导致以为怪物击杀完毕，实际还没杀完
         logger.info("开始击杀怪物")
         room_skill_combo_status = False
         while True:
@@ -261,7 +258,7 @@ class GameAction:
         判断房间是否存在怪物,如果存在怪物就把怪物坐标返回去，否则返回空
         :return:
         """
-        if map_info["Monster"]["count"] or map_info["Monster_ds"]["count"] or map_info["Monster_szt"]["count"] == 0:
+        if map_info["Monster"]["count"] and map_info["Monster_ds"]["count"] and map_info["Monster_szt"]["count"] == 0:
             return []
         else:
             monster = []
@@ -301,10 +298,10 @@ class GameAction:
         :return:
         """
         if self.is_exist_monster(map_info):
-            logger.info("怪物未击杀完毕，不满足过图条件")
+            logger.info("怪物未击杀完毕，不满足过图条件,结束跑图")
             return False, "怪物未击杀"
         if self.is_exist_item(map_info):
-            logger.info("存在没检的材料，不满足过图条件")
+            logger.info("存在没检的材料，不满足过图条件,结束跑图")
             return False, "存在没检的材料"
         return True, ""
 
@@ -314,6 +311,7 @@ class GameAction:
         :param direction:
         :return:
         """
+        # TODO 偶现角色突然就不动了，也没卡死，就是不走了
         start_move = False
         hlx, hly = 0, 0
         logger.info("开始跑图")
@@ -327,12 +325,12 @@ class GameAction:
             ada_image = cv.adaptiveThreshold(cv.cvtColor(screen, cv.COLOR_BGR2GRAY), 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 13, 3)
             if np.sum(ada_image) == 0:
                 logger.info("过图成功")
-                self.adb.touch_end(0, 0)
+                self.adb.touch_end()
                 return True
 
             if kasi == 50:
                 logger.info("卡死次数超过 50 次，过图失败")
-                self.adb.touch_end(0, 0)
+                self.adb.touch_end()
                 return False, "过图失败"
 
             map_info = self.get_map_info(screen, show=True)
@@ -380,27 +378,26 @@ class GameAction:
             # 获取到门的坐标后进行移动，需要考虑的是可能当前视野内没有获取到狮子头的门，别进错了
             else:
                 logger.info("箭头和指引反向不一致，开始找门过图")
-                # if map_info["Gate"]["count"] == 0:
-                #     logger.info("没有找到门的坐标")
-                #     self.random_move()
-                #     continue
-                # else:
-                #     gates = map_info["Gate"]["bottom_centers"]
-                # gx, gy = find_door_in_direction(gates, self.next_room_direction)
-                # angle = calc_angle((hx, hy), (gx, gy))
-                # if not start_move:
-                #     self.ctrl.touch_roulette_wheel()
-                #     start_move = True
-                # else:
-                #     self.ctrl.swipe_roulette_wheel(angle)
-                self.random_move()
-                continue
+                lable_name = get_door_coordinate_by_direction(direction)
+                if map_info[lable_name]["count"] == 0:
+                    logger.info(f"没有找到{direction} 方向门的坐标")
+                    self.random_move()
+                    continue
+                dx, dy = map_info[lable_name]["bottom_centers"][0]
+                angle = calc_angle((hx, hy), (dx, dy))
+                if not start_move:
+                    self.hero_ctrl.touch_roulette_wheel()
+                    start_move = True
+                else:
+                    self.hero_ctrl.swipe_roulette_wheel(angle)
+                    continue
 
 
 if __name__ == '__main__':
     action = GameAction('nv_qi_gong', ScrcpyADB())
     # for i in range(5):
-    action.mov_to_next_room()
+    action.mov_to_next_room("right")
+    # action.mov_to_next_room()
     #     # action.get_items()
     #     time.sleep(3)
     # print(calc_angle((472, 1328), (788, 1655)))

@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 # @Author  : huxiansheng (you@example.org)
 # @Date    : 2024/8/7
-from typing import Tuple
 
 from device_manager.scrcpy_adb import ScrcpyADB
 from game.dengeon.dungeon import DungeonInfo
-from game.game_action import GameAction
+from game.dengeon.map_action import GameAction
 from utils.logger import logger
 
 
